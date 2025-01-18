@@ -1,0 +1,212 @@
+{% extends 'eveunicalendar/base.html' %}
+{% load i18n %}
+{% load humanize %}
+{% load custom_filters %}
+
+{% block details %}
+    <div id='calendar'></div>
+
+        <!-- Modal for displaying event details -->
+    <div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="eventModalLabel">Event Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Title:</strong> <span id="eventTitle"></span></p>
+                    <p><strong>Start:</strong> <span id="eventStart"></span></p>
+                    <p><strong>End:</strong> <span id="eventEnd"></span></p>
+                    <p><strong>Description:</strong></p>
+                    <p id="eventDescription"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_javascript %}
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js" integrity="sha256-ZztCtsADLKbUFK/X6nOYnJr0eelmV2X3dhLDB/JK6fM=" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var csrfToken = '{{ csrf_token }}';
+            var calendarEl = document.getElementById('calendar');
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                themeSystem: 'bootstrap5',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+                },
+                dateClick: function(info) {
+                    info.view.calendar.changeView('timeGridDay', info.date);
+                },
+                events: {
+                    url: '/eveunicalendar/private-events/',
+                    method: 'POST',
+                    extraParams: {
+                        csrfmiddlewaretoken: csrfToken
+                    },
+                },
+                eventClick: function(info) {
+                    // Function to prettify date/time
+                    function formatDateTime(date) {
+                        if (!date) return "No Date";
+                        return new Intl.DateTimeFormat('en-GB', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true,
+                        }).format(new Date(date));
+                    }
+
+                    // Function to sanitize input by escaping HTML tags
+                    function sanitizeInput(input) {
+                        if (!input) return "No Content";
+                        return input.replace(/[&<>"']/g, function (match) {
+                            const escapeMap = {
+                                "&": "&amp;",
+                                "<": "&lt;",
+                                ">": "&gt;",
+                                '"': "&quot;",
+                                "'": "&#39;",
+                            };
+                            return escapeMap[match];
+                        });
+                    }
+
+                    // Function to convert URLs into clickable links
+                    function linkify(input) {
+                        const urlRegex = /(https?:\/\/[^\s]+)/g;
+                        return input.replace(urlRegex, function (url) {
+                            return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+                        });
+                    }
+
+                    // Combine sanitization and linkify for description
+                    function formatDescription(description) {
+                        if (!description) return "No Description";
+                        const sanitized = sanitizeInput(description); // Sanitize the input
+                        return linkify(sanitized); // Linkify URLs
+                    }
+
+                    document.getElementById('eventTitle').textContent = sanitizeInput(info.event.title) || "No Title";
+                    document.getElementById('eventStart').textContent = formatDateTime(info.event.start);
+                    document.getElementById('eventEnd').textContent = formatDateTime(info.event.end);
+                    document.getElementById('eventDescription').innerHTML = formatDescription(info.event.extendedProps.description);
+
+                    // Show the modal
+                    var eventModal = new bootstrap.Modal(document.getElementById('eventModal'));
+                    eventModal.show();
+                },
+                contentHeight:"auto",
+                dayMaxEvents: true
+            });
+            calendar.render();
+        });
+    </script>
+{% endblock %}
+
+{% block extra_css %}
+        <style>
+        /* General FullCalendar dark theme adjustments */
+        .fc {
+            color: #ffffff; /* Default text color for dark themes */
+            background-color: #212529; /* Match Bootstrap dark theme background */
+        }
+
+        /* List view item adjustments */
+        .fc-list-item {
+            background-color: #343a40; /* Dark grey background for list items */
+            color: #ffffff; /* White text */
+            border: 1px solid #495057; /* Subtle border to separate items */
+        }
+
+        .fc-list-item:hover {
+            background-color: #495057; /* Slightly lighter grey on hover */
+        }
+
+        /* Header toolbar adjustments */
+        .fc-toolbar {
+            background-color: #343a40; /* Dark background for toolbar */
+            color: #ffffff; /* White text for toolbar */
+            border-bottom: 1px solid #495057; /* Subtle border below toolbar */
+        }
+
+        .fc-toolbar button {
+            color: #ffffff; /* White text for buttons */
+            background-color: #495057; /* Darker grey background for buttons */
+            border: none;
+        }
+
+        .fc-toolbar button:hover {
+            background-color: #6c757d; /* Lighter grey on hover */
+        }
+
+        .fc-toolbar-title {
+            color: #ffffff; /* White text for title */
+        }
+
+        /* Day grid adjustments */
+        .fc-daygrid-day {
+            background-color: #212529; /* Dark background for days */
+            color: #ffffff; /* White text for day numbers and events */
+        }
+
+        .fc-daygrid-day:hover {
+            background-color: #343a40; /* Slightly lighter grey on hover */
+        }
+
+        /* Highlighted items (e.g., selected day in list view) */
+        .fc-highlight {
+            background-color: #495057; /* Darker grey for highlights */
+            color: #ffffff; /* Ensure text remains visible */
+        }
+
+        /* Adjust event text in list and grid views */
+        .fc-event {
+            background-color: #495057; /* Match dark theme */
+            color: #ffffff; /* Ensure event text is readable */
+            border: 1px solid #6c757d; /* Subtle border for better visibility */
+        }
+
+        .fc-event:hover {
+            background-color: #6c757d; /* Slightly lighter grey on hover */
+        }
+
+        /* Time text inside events */
+        .fc-event-time {
+            color: #adb5bd; /* Light grey for event time */
+        }
+
+        .fc .fc-list-event:hover td {
+            background-color: #6c757d;
+        }
+
+        .fc-theme-standard .fc-list-day-cushion {
+            background-color: #343a40;
+        }
+
+        .fc-day-today {
+            background-color: #253940 !important; /* Replace with your desired colour */
+        }
+    </style>
+    <style>
+        .fc {
+            padding: 1em;
+        }
+
+        #eventDescription {
+            word-wrap: break-word; /* For older browsers */
+            word-break: break-word;
+            overflow-wrap: break-word; /* Modern equivalent */
+            white-space: pre-wrap; /* Preserve formatting like newlines */
+        }
+    </style>
+{% endblock %}
