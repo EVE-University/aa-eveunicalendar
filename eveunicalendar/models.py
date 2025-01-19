@@ -16,6 +16,7 @@ class Event(models.Model):
     title = models.CharField(max_length=255)
     eventid = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True, null=True)
+    creator_global_name = models.CharField(max_length=255, blank=True, null=True)
     start_time = models.DateTimeField()
     end_time = models.DateTimeField(null=True, blank=True)
     all_day = models.BooleanField(default=False)
@@ -24,4 +25,4 @@ class Event(models.Model):
         ordering = ["start_time"]
 
     def __str__(self):
-        return f"{self.start_time} - {self.title}"
+        return f"{self.start_time} - {self.title} (Creator: {self.creator_global_name or 'Unknown'})"

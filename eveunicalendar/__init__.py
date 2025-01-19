@@ -3,4 +3,4 @@
 # pylint: disable = invalid-name
 default_app_config = "eveunicalendar.apps.EunicalendarConfig"
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

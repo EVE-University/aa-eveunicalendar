@@ -16,6 +16,7 @@
                 </div>
                 <div class="modal-body">
                     <p><strong>Title:</strong> <span id="eventTitle"></span></p>
+                    <p><strong>Creator:</strong> <span id="eventCreator"></span></p>
                     <p><strong>Start:</strong> <span id="eventStart"></span></p>
                     <p><strong>End:</strong> <span id="eventEnd"></span></p>
                     <p><strong>Description:</strong></p>
@@ -35,13 +36,31 @@
         document.addEventListener('DOMContentLoaded', function() {
             var csrfToken = '{{ csrf_token }}';
             var calendarEl = document.getElementById('calendar');
+
+            // Function to determine the initial view based on screen width
+            function getInitialView() {
+                return window.innerWidth < 830 ? 'listMonth' : 'dayGridMonth';
+            }
+
+            // Function to determine the toolbar layout based on screen width
+            function getHeaderToolbar() {
+                return window.innerWidth < 830
+                    ? {
+                          left: 'prev,next today',
+                          center: 'title',
+                          right: '' // Hide right menu buttons on small screens
+                      }
+                    : {
+                          left: 'prev,next today',
+                          center: 'title',
+                          right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth' // Show all buttons on larger screens
+                      };
+            }
+
             var calendar = new FullCalendar.Calendar(calendarEl, {
                 themeSystem: 'bootstrap5',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
-                },
+                initialView: getInitialView(),
+                headerToolbar: getHeaderToolbar(),
                 dateClick: function(info) {
                     info.view.calendar.changeView('timeGridDay', info.date);
                 },
@@ -100,6 +119,7 @@
                     document.getElementById('eventStart').textContent = formatDateTime(info.event.start);
                     document.getElementById('eventEnd').textContent = formatDateTime(info.event.end);
                     document.getElementById('eventDescription').innerHTML = formatDescription(info.event.extendedProps.description);
+                    document.getElementById('eventCreator').textContent = info.event.extendedProps.creator || "Unknown";
 
                     // Show the modal
                     var eventModal = new bootstrap.Modal(document.getElementById('eventModal'));
@@ -109,6 +129,20 @@
                 dayMaxEvents: true
             });
             calendar.render();
+
+            window.addEventListener('resize', function () {
+                if (window.innerWidth < 830) {
+                    if (calendar.view.type !== 'listMonth') {
+                        calendar.changeView('listMonth');
+                    }
+                    calendar.setOption('headerToolbar', getHeaderToolbar());
+                } else {
+                    if (calendar.view.type === 'listMonth') {
+                        calendar.changeView('dayGridMonth');
+                    }
+                    calendar.setOption('headerToolbar', getHeaderToolbar());
+                }
+            });
         });
     </script>
 {% endblock %}

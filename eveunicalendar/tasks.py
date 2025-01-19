@@ -73,6 +73,7 @@ def populate_events():
             "description": event.get("description"),
             "start_time": event.get("scheduled_start_time"),
             "end_time": event.get("scheduled_end_time"),
+            "creator_global_name": event.get("creator", {}).get("global_name"),
             "all_day": False,
         }
 

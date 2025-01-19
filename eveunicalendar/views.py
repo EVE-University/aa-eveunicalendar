@@ -52,6 +52,7 @@ def private_events(request):
                 "title": event.title,
                 "start": event.start_time.isoformat(),
                 "end": event.end_time.isoformat() if event.end_time else None,
+                "creator": event.creator_global_name or "Unknown",
                 "description": event.description,
                 "allDay": event.all_day,
             }
