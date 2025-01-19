@@ -108,11 +108,31 @@
                         });
                     }
 
-                    // Combine sanitization and linkify for description
+                    // Function to convert Discord timestamps into human-readable dates
+                    function parseDiscordTimestamps(input) {
+                        if (!input) return input;
+
+                        console.log(input)
+
+                        return input.replace(/<t:(\d+):.>/g, function (match, epoch) {
+                            const date = new Date(epoch * 1000); // Convert seconds to milliseconds
+                            return new Intl.DateTimeFormat('en-GB', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true,
+                            }).format(date);
+                        });
+                    }
+
+                    // Combine sanitization, Discord markdown parsing, and linkify for description
                     function formatDescription(description) {
                         if (!description) return "No Description";
-                        const sanitized = sanitizeInput(description); // Sanitize the input
-                        return linkify(sanitized); // Linkify URLs
+                        const sanitized = parseDiscordTimestamps(description); // Parse Discord timestamps
+                        const parsedTimestamps = sanitizeInput(sanitized); // Sanitize the input
+                        return linkify(parsedTimestamps); // Linkify URLs
                     }
 
                     document.getElementById('eventTitle').textContent = sanitizeInput(info.event.title) || "No Title";
