@@ -48,6 +48,24 @@ def fetch_scheduled_events(guild_id):
             return []
 
 
+def fetch_guild_member_display_name(guild_id, user_id):
+    """Fetch the display name of a user within a guild."""
+    url = f"{BASE_URL}/guilds/{guild_id}/members/{user_id}"
+    while True:
+        response = requests.get(url, headers=HEADERS)
+        if handle_rate_limit(response):
+            continue
+        if response.status_code == 200:
+            member_data = response.json()
+            # Try to return the display name (nickname) or fallback to the global username
+            return member_data.get("nick") or member_data["user"].get("username")
+        else:
+            logger.debug(
+                f"Error fetching member display name for user {user_id} in guild {guild_id}: {response.status_code} - {response.text}"
+            )
+            return None
+
+
 @shared_task
 def populate_events():
     """
@@ -68,12 +86,20 @@ def populate_events():
     Event.objects.exclude(eventid__in=discord_event_ids).delete()
 
     for event in events:
+        creator_id = event.get("creator", {}).get("id")
+        creator_display_name = None
+        if creator_id:
+            creator_display_name = fetch_guild_member_display_name(
+                getattr(settings, "DISCORD_GUILD_ID"), creator_id
+            )
+
         event_data = {
             "title": event.get("name"),
             "description": event.get("description"),
             "start_time": event.get("scheduled_start_time"),
             "end_time": event.get("scheduled_end_time"),
-            "creator_global_name": event.get("creator", {}).get("global_name"),
+            "creator_global_name": creator_display_name
+            or event.get("creator", {}).get("global_name"),
             "all_day": False,
         }
 
