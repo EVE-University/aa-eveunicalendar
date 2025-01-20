@@ -58,7 +58,7 @@ def fetch_guild_member_display_name(guild_id, user_id):
         if response.status_code == 200:
             member_data = response.json()
             # Try to return the display name (nickname) or fallback to the global username
-            return member_data.get("nick") or member_data["user"].get("username")
+            return member_data.get("nick") or member_data["user"].get("global_name")
         else:
             logger.debug(
                 f"Error fetching member display name for user {user_id} in guild {guild_id}: {response.status_code} - {response.text}"
