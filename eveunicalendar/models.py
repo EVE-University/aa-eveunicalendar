@@ -20,6 +20,7 @@ class Event(models.Model):
     start_time = models.DateTimeField()
     end_time = models.DateTimeField(null=True, blank=True)
     all_day = models.BooleanField(default=False)
+    recurrence_rule = models.CharField(max_length=1000, blank=True, null=True)
 
     class Meta:
         ordering = ["start_time"]
