@@ -101,7 +101,9 @@ def populate_events():
             "creator_global_name": creator_display_name
             or event.get("creator", {}).get("global_name"),
             "all_day": False,
+            "recurrence_rule": event.get("recurrence_rule"),
         }
+        print(event_data)
 
         # Update or create the event based on `eventid`
         obj, created = Event.objects.update_or_create(
