@@ -103,7 +103,6 @@ def populate_events():
             "all_day": False,
             "recurrence_rule": event.get("recurrence_rule"),
         }
-        print(event_data)
 
         # Update or create the event based on `eventid`
         obj, created = Event.objects.update_or_create(

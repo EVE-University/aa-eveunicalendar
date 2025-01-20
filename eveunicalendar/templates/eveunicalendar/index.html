@@ -21,7 +21,11 @@
                     <p><strong>End:</strong> <span id="eventEnd"></span></p>
                     <p><strong>Description:</strong></p>
                     <p id="eventDescription"></p>
-                </div>
+                    <p>
+                        <a id="eventDiscordLink" href="#" class="btn btn-outline-primary  btn-lg" target="_blank" style="display: none;">
+                            Open Event in Discord
+                        </a>
+                    </p>                </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
@@ -140,6 +144,15 @@
                     document.getElementById('eventEnd').textContent = formatDateTime(info.event.end);
                     document.getElementById('eventDescription').innerHTML = formatDescription(info.event.extendedProps.description);
                     document.getElementById('eventCreator').textContent = info.event.extendedProps.creator || "Unknown";
+
+                    // Add Discord link
+                    const discordLink = document.getElementById('eventDiscordLink');
+                    if (info.event.extendedProps.discord_link) {
+                        discordLink.href = info.event.extendedProps.discord_link;
+                        discordLink.style.display = "inline";
+                    } else {
+                        discordLink.style.display = "none";
+                    }
 
                     // Show the modal
                     var eventModal = new bootstrap.Modal(document.getElementById('eventModal'));

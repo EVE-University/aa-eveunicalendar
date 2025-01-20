@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from dateutil import parser
 from dateutil.rrule import DAILY, MONTHLY, WEEKLY, YEARLY, rrule
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -71,6 +72,7 @@ def private_events(request):
                         "allDay": event.all_day,
                         "description": event.description or "No description",
                         "creator": event.creator_global_name or "Unknown",
+                        "discord_link": f"discord://-/events/{getattr(settings, 'DISCORD_GUILD_ID')}/{event.eventid}",
                     }
                 )
 
@@ -128,6 +130,7 @@ def private_events(request):
                             "allDay": event.all_day,
                             "description": event.description or "No description",
                             "creator": event.creator_global_name or "Unknown",
+                            "discord_link": f"discord://-/events/{getattr(settings, 'DISCORD_GUILD_ID')}/{event.eventid}",
                         }
                     )
 
