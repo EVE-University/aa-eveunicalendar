@@ -100,7 +100,7 @@ def update_google_sheet():
         # Remove the matched event ID from existing_ids
         existing_ids.discard(event["id"])
 
-    # Any IDs left in existing_ids are no longer in event_list (to be logged as removed)
+    # Any IDs left in existing_ids are no longer in event_list (to be logged as removed or archived)
     for id in existing_ids:
         # Check is event has passed
         if parser.isoparse(existing_data[id][2]) < now():
