@@ -2,22 +2,110 @@
 
 import logging
 import time
+from datetime import timedelta
 
 import requests
 from celery import shared_task
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
 
 from django.conf import settings
+from django.utils.timezone import now
 
+from .app_settings import GOOGLE_ACTIVE_SHEET, GOOGLE_CREDENTIALS_FILE, GOOGLE_SHEET_ID
 from .models import Event
+from .utils import build_events
 
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://discord.com/api/v10"
 
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+
 HEADERS = {
     "Authorization": f"Bot {getattr(settings, 'DISCORD_BOT_TOKEN')}",
     "Content-Type": "application/json",
 }
+
+
+def update_google_sheet():
+    """
+    Updates a Google Sheet with event data. Archives old events weekly.
+    """
+    if not GOOGLE_CREDENTIALS_FILE or not GOOGLE_SHEET_ID:
+        return None
+
+    # start_date = now()  # + timedelta(days=1)
+    end_date = now() + timedelta(days=7)
+
+    # Query the Event model for all events
+    events = Event.objects.all()
+
+    event_list = build_events(events, end_date)
+
+    try:
+        credentials = Credentials.from_service_account_file(
+            GOOGLE_CREDENTIALS_FILE, scopes=SCOPES
+        )
+        service = build("sheets", "v4", credentials=credentials)
+    except Exception as e:
+        logger.error(f"Error initializing Google Sheets API: {e}")
+        return
+
+    sheet = service.spreadsheets()
+
+    # Get existing data from the sheet
+    result = (
+        sheet.values()
+        .get(spreadsheetId=GOOGLE_SHEET_ID, range=GOOGLE_ACTIVE_SHEET)
+        .execute()
+    )
+    rows = result.get("values", [])
+    headers = rows[0] if rows else []
+    existing_data = {
+        row[0]: row for row in rows[1:]
+    }  # Create a dict with ID as the key
+
+    # Ensure the headers match the event keys
+    if not headers:
+        headers = ["ID", "Title", "Start", "End", "Description", "Creator"]
+        sheet.values().update(
+            spreadsheetId=GOOGLE_SHEET_ID,
+            range=GOOGLE_ACTIVE_SHEET,
+            valueInputOption="RAW",
+            body={"values": [headers]},
+        ).execute()
+
+    # Prepare data for updates
+    updates = []
+    for event in event_list:
+        row = [
+            event["id"],
+            event["title"],
+            event["start"],
+            event["end"],
+            event["description"],
+            event["creator"],
+        ]
+        if event["id"] in existing_data:
+            # Update existing row
+            row_index = rows.index(existing_data[event["id"]]) + 1  # 1-based index
+            updates.append(
+                {"range": f"Sheet1!A{row_index}:G{row_index}", "values": [row]}
+            )
+        else:
+            # Append new row
+            sheet.values().append(
+                spreadsheetId=GOOGLE_SHEET_ID,
+                range=GOOGLE_ACTIVE_SHEET,
+                valueInputOption="RAW",
+                body={"values": [row]},
+            ).execute()
+
+    # Batch update existing rows
+    if updates:
+        body = {"valueInputOption": "RAW", "data": updates}
+        sheet.values().batchUpdate(spreadsheetId=GOOGLE_SHEET_ID, body=body).execute()
 
 
 def handle_rate_limit(response):
@@ -113,5 +201,8 @@ def populate_events():
             logger.debug(f"Created new event: {obj.title}")
         else:
             logger.debug(f"Updated existing event: {obj.title}")
+
+    # Push events to Google Sheets
+    update_google_sheet()
 
     logger.debug("Event synchronization complete.")
