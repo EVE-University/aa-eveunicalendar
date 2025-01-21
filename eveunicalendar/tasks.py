@@ -88,6 +88,9 @@ def update_google_sheet():
 
     # Add or update rows based on current events
     for event in event_list:
+        # Check and skip if event has past
+        if parser.isoparse(event["start"]) < now():
+            continue
         row = [
             event["id"],
             event["title"],
