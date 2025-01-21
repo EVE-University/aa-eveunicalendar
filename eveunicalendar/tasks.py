@@ -6,13 +6,19 @@ from datetime import timedelta
 
 import requests
 from celery import shared_task
+from dateutil import parser
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
 from django.conf import settings
 from django.utils.timezone import now
 
-from .app_settings import GOOGLE_ACTIVE_SHEET, GOOGLE_CREDENTIALS_FILE, GOOGLE_SHEET_ID
+from .app_settings import (
+    GOOGLE_ACTIVE_SHEET,
+    GOOGLE_ARCHIVE_SHEET,
+    GOOGLE_CREDENTIALS_FILE,
+    GOOGLE_SHEET_ID,
+)
 from .models import Event
 from .utils import build_events
 
@@ -28,6 +34,15 @@ HEADERS = {
 }
 
 
+def archive_event(event, sheet):
+    sheet.values().append(
+        spreadsheetId=GOOGLE_SHEET_ID,
+        range=GOOGLE_ARCHIVE_SHEET,
+        valueInputOption="RAW",
+        body={"values": [event]},
+    ).execute()
+
+
 def update_google_sheet():
     """
     Updates a Google Sheet with event data. Archives old events weekly.
@@ -35,7 +50,6 @@ def update_google_sheet():
     if not GOOGLE_CREDENTIALS_FILE or not GOOGLE_SHEET_ID:
         return None
 
-    # start_date = now()  # + timedelta(days=1)
     end_date = now() + timedelta(days=7)
 
     # Query the Event model for all events
@@ -61,23 +75,18 @@ def update_google_sheet():
         .execute()
     )
     rows = result.get("values", [])
-    headers = rows[0] if rows else []
     existing_data = {
         row[0]: row for row in rows[1:]
     }  # Create a dict with ID as the key
 
-    # Ensure the headers match the event keys
-    if not headers:
-        headers = ["ID", "Title", "Start", "End", "Description", "Creator"]
-        sheet.values().update(
-            spreadsheetId=GOOGLE_SHEET_ID,
-            range=GOOGLE_ACTIVE_SHEET,
-            valueInputOption="RAW",
-            body={"values": [headers]},
-        ).execute()
+    # Prepare data for bulk update
+    # Start with headers
+    sheet_data = [["ID", "Title", "Start", "End", "Description", "Creator"]]
 
-    # Prepare data for updates
-    updates = []
+    # Convert existing_data to a set of IDs for quick lookup
+    existing_ids = set(existing_data.keys())
+
+    # Add or update rows based on current events
     for event in event_list:
         row = [
             event["id"],
@@ -87,25 +96,27 @@ def update_google_sheet():
             event["description"],
             event["creator"],
         ]
-        if event["id"] in existing_data:
-            # Update existing row
-            row_index = rows.index(existing_data[event["id"]]) + 1  # 1-based index
-            updates.append(
-                {"range": f"Sheet1!A{row_index}:G{row_index}", "values": [row]}
-            )
-        else:
-            # Append new row
-            sheet.values().append(
-                spreadsheetId=GOOGLE_SHEET_ID,
-                range=GOOGLE_ACTIVE_SHEET,
-                valueInputOption="RAW",
-                body={"values": [row]},
-            ).execute()
+        sheet_data.append(row)
+        # Remove the matched event ID from existing_ids
+        existing_ids.discard(event["id"])
 
-    # Batch update existing rows
-    if updates:
-        body = {"valueInputOption": "RAW", "data": updates}
-        sheet.values().batchUpdate(spreadsheetId=GOOGLE_SHEET_ID, body=body).execute()
+    # Any IDs left in existing_ids are no longer in event_list (to be logged as removed)
+    for id in existing_ids:
+        # Check is event has passed
+        if parser.isoparse(existing_data[id][2]) < now():
+            logger.info(f"Archive event: {id}")
+            archive_event(existing_data[id], sheet)
+        else:
+            logger.info(f"Removed event: {id}")
+        sheet_data.append(["", "", "", "", "", ""])
+
+    # Bulk update the entire sheet (overwrite existing data)
+    sheet.values().update(
+        spreadsheetId=GOOGLE_SHEET_ID,
+        range=GOOGLE_ACTIVE_SHEET,
+        valueInputOption="RAW",
+        body={"values": sheet_data},
+    ).execute()
 
 
 def handle_rate_limit(response):
