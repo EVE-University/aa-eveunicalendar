@@ -8,6 +8,7 @@ This plugin app for Alliance Auth displays Eve University's Discord events in a 
 ## **Features**
 - Displays Eve University's Discord events in a visually appealing calendar view.
 - Fully integrated with Alliance Auth and leverages Discord data.
+- Supports logging events to Google Sheets for historical tracking.
 
 ---
 
@@ -37,6 +38,22 @@ This plugin app for Alliance Auth displays Eve University's Discord events in a 
 2. **Set the following environment variables in your `local.py` or `.env` file:**
    - `DISCORD_GUILD_ID`: Your Eve University Discord server ID.
    - `DISCORD_BOT_TOKEN`: A valid bot token with permission to read scheduled events.
+
+3. **Configure Google Sheets integration:**
+   Place your `credentials.json` file (from Google Sheets API setup) in the same directory as your `local.py` file, and add the following configuration to your `local.py`:
+   ```python
+   import os
+
+   BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+   GOOGLE_CREDENTIALS_FILE = os.path.join(BASE_DIR, 'credentials.json')
+   ```
+**Optional config setting**
+
+Defaults are shown when not present.
+   ```python
+   GOOGLE_ACTIVE_SHEET = 'Current'
+   GOOGLE_ARCHIVE_SHEET = 'Archive'
+   ```
 
 ---
 
